@@ -1,5 +1,6 @@
 import { SourceLocation } from 'estree'
 import { SourceMapConsumer } from 'source-map'
+import { Tokenizer, Parser, Resolver, Translator} from 'py-slang/src'
 
 import createContext from './createContext'
 import { InterruptedError } from './errors/errors'
@@ -335,6 +336,19 @@ export async function runFilesInContext(
 
   if (context.chapter === Chapter.HTML) {
     return htmlRunner(code, context, options)
+  }
+
+  if (context.chapter === Chapter.PYTHON_1) {
+    const tokenizer = new Tokenizer(code)
+    const tokens = tokenizer.scanEverything()
+    const py_parser = new Parser(code, tokens)
+    const ast = py_parser.parse()
+    const resolver = new Resolver(code, ast)
+    resolver.resolve(ast)
+    const translator = new Translator()
+    const estreeAst = translator.resolve(ast) as unknown as es.Program
+
+    return fullJSRunner(estreeAst, context, options)
   }
 
   // FIXME: Clean up state management so that the `parseError` function is pure.
